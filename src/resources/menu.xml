@@ -13,25 +13,25 @@
         <force>true</force>
         <pause>false</pause>
         <duration>3000</duration>
-        <image>resources/images/menu/Title.jpg</image>
+        <image>resources/images/menu/title.jpg</image>
     </layer>
     <layer id="Credits" next="MainTitle">
         <transition>SCROLL_VERTICAL_NORTH</transition>
         <force>true</force>
         <pause>false</pause>
-        <duration>3000</duration>
-        <image>resources/images/menu/credit.gif</image>
+        <duration>5000</duration>
+        <image>resources/images/menu/credit.jpg</image>
     </layer>
     <layer id="MainTitle">
         <transition>NONE</transition>
         <force>false</force>
         <pause>true</pause>
         <duration>15000</duration>
-        <image>resources/images/menu/background.jpg</image>
+        <image>resources/images/menu/background.png</image>
         <optionContainerRatio>0.95</optionContainerRatio>
         <optionBorderThickness>1.5</optionBorderThickness>
         <title>Daedalian Opus</title>
-        <backgroundMusicLocation></backgroundMusicLocation>
+        <backgroundMusicLocation>resources/audio/menu/music/title.mp3</backgroundMusicLocation>
         <optionSoundLocation>resources/audio/menu/sound/selection.wav</optionSoundLocation>
         <options name="Start Game" next="GameStart" id="GameStart"></options>
         <options name="Options" next="Options" id="Options"></options>
@@ -44,24 +44,49 @@
         <force>false</force>
         <pause>true</pause>
         <duration>10000</duration>
-        <image>resources/images/menu/background.jpg</image>
+        <image>resources/images/menu/background.png</image>
         <optionContainerRatio>0.95</optionContainerRatio>
         <optionBorderThickness>1.5</optionBorderThickness>
         <title>Options</title>
-        <backgroundMusicLocation></backgroundMusicLocation>
+        <backgroundMusicLocation>resources/audio/menu/music/options.mp3</backgroundMusicLocation>
         <optionSoundLocation>resources/audio/menu/sound/selection.wav</optionSoundLocation>
         <options name="Starting Level: " id="Level">
             <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+            <option>9</option>
+            <option>10</option>
+            <option>11</option>
+            <option>12</option>
+            <option>13</option>
+            <option>14</option>
+            <option>15</option>
+            <option>16</option>
+            <option>17</option>
+            <option>18</option>
+            <option>19</option>
             <option>20</option>
-            <option>40</option>
-            <option>60</option>
-            <option>80</option>
-            <option>100</option>
-            <option>120</option>
-            <option>140</option>
-            <option>160</option>
-            <option>180</option>
-            <option>200</option>
+            <option>21</option>
+            <option>22</option>
+            <option>23</option>
+            <option>24</option>
+            <option>25</option>
+            <option>26</option>
+            <option>27</option>
+            <option>28</option>
+            <option>29</option>
+            <option>30</option>
+            <option>31</option>
+            <option>32</option>
+            <option>33</option>
+            <option>34</option>
+            <option>35</option>
+            <option>36</option>
         </options>
         <options name="Starting Lives: " id="Lives">
             <option>5</option>

@@ -1,8 +1,13 @@
 <?xml version="1.0"?>
 <sounds>
-    <!--
-    <sound id="MusicBonus1">resources/audio/game/music/game/bonus1.mp3</sound>
     <sound id="MusicTheme">resources/audio/game/music/Theme.mp3</sound>
-    -->
+    <sound id="MusicVictory">resources/audio/game/music/Victory.mp3</sound>
+    <sound id="MusicGameOver">resources/audio/game/music/GameOver.mp3</sound>
     
+    <sound id="SfxFlip">resources/audio/game/sfx/flip.wav</sound>
+    <sound id="SfxInvalid">resources/audio/game/sfx/invalid.wav</sound>
+    <sound id="SfxPlace">resources/audio/game/sfx/place.wav</sound>
+    <sound id="SfxPickup">resources/audio/game/sfx/pickup.wav</sound>
+    <sound id="SfxRotate">resources/audio/game/sfx/rotate.wav</sound>
+    <sound id="SfxMove">resources/audio/game/sfx/move.wav</sound>
 </sounds>

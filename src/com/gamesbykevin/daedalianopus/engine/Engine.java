@@ -42,7 +42,7 @@ public final class Engine implements KeyListener, MouseMotionListener, MouseList
     private final long seed = System.nanoTime();
     
     //the game font size
-    private static final float GAME_FONT_SIZE = 14f;
+    private static final float GAME_FONT_SIZE = 28f;
     
     /**
      * The Engine that contains the game/menu objects
@@ -234,7 +234,7 @@ public final class Engine implements KeyListener, MouseMotionListener, MouseList
     {
         //get default font
         if (font == null)
-            font = graphics.getFont().deriveFont(GAME_FONT_SIZE);
+            font = graphics.getFont().deriveFont(Font.BOLD, GAME_FONT_SIZE);
         
         if (menu != null)
         {

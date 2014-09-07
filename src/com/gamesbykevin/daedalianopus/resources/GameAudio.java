@@ -16,7 +16,8 @@ public final class GameAudio extends AudioManager
      */
     public enum Keys
     {
-        //MusicTheme
+        MusicTheme, MusicVictory, MusicGameOver,
+        SfxFlip, SfxInvalid, SfxPickup, SfxPlace, SfxRotate, SfxMove
     }
     
     public GameAudio() throws Exception

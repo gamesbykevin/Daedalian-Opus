@@ -2,7 +2,6 @@ package com.gamesbykevin.daedalianopus.manager;
 
 import com.gamesbykevin.framework.resources.Disposable;
 import com.gamesbykevin.daedalianopus.engine.Engine;
-import com.gamesbykevin.daedalianopus.shared.IProgress;
 
 import java.awt.Graphics;
 import java.awt.Rectangle;
