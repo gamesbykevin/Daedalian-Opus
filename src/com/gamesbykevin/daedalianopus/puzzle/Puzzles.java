@@ -27,8 +27,11 @@ public final class Puzzles implements Disposable, IElement
     //list of puzzles
     private List<Puzzle> puzzles;
     
+    //random puzzle
+    private Puzzle random;
+    
     //the current puzzle
-    private int index = 0;
+    private int index = -1;
     
     //game cursor
     private Image mouse;
@@ -82,6 +85,9 @@ public final class Puzzles implements Disposable, IElement
         
         //default first puzzle
         setCurrent(DEFAULT_PUZZLE);
+        
+        //center puzzle location
+        resetPuzzleLocation();
     }
     
     @Override
@@ -107,29 +113,20 @@ public final class Puzzles implements Disposable, IElement
     }
     
     @Override
-    public void update(final Engine engine)
+    public void update(final Engine engine) throws Exception
     {
         //don't continue if we solved the puzzle
         if (getPuzzle().isSolved())
         {
             if (countdown.hasTimePassed())
             {
-                //time passed, now start next puzzle
-                setCurrent(getCurrent() + 1);
-                
                 //reset timers
                 timer.reset();
                 countdown.reset();
                 
-                try
-                {
-                    //reset
-                    engine.getManager().reset(engine);
-                }
-                catch (Exception e)
-                {
-                    e.printStackTrace();
-                }
+                //reset
+                engine.getManager().reset(engine);
+                return;
             }
             else
             {
@@ -297,7 +294,11 @@ public final class Puzzles implements Disposable, IElement
                 hide = pieces.hasSelection();
                 
                 if (hide)
+                {
                     engine.getResources().playGameAudio(GameAudio.Keys.SfxPickup);
+                    pieces.getSelection().setCol(location);
+                    pieces.getSelection().setRow(location);
+                }
             }
         }
         
@@ -306,10 +307,19 @@ public final class Puzzles implements Disposable, IElement
     }
     
     /**
+     * Get the puzzle count
+     * @return The total number of campaign puzzles
+     */
+    public int getPuzzlesCount()
+    {
+        return this.puzzles.size();
+    }
+    
+    /**
      * The index of the current puzzle in play
      * @return The index of the list of the current puzzle
      */
-    private int getCurrent()
+    public int getCurrent()
     {
         return this.index;
     }
@@ -325,13 +335,19 @@ public final class Puzzles implements Disposable, IElement
         
         //reset timer when setting puzzle
         this.timer.reset();
-        
+    }
+    
+    /**
+     * Position puzzle in center
+     */
+    public void resetPuzzleLocation()
+    {
         //now that current puzzle is set, position in center
         getPuzzle().setLocation(
             center.x - ((getPuzzle().getCols() / 2) * Puzzle.BLOCK_SIZE), 
             center.y - ((getPuzzle().getRows() / 2) * Puzzle.BLOCK_SIZE));
         
-        //set start cursor location
+        //reset cursor location
         resetCursorLocation();
     }
     
@@ -349,14 +365,34 @@ public final class Puzzles implements Disposable, IElement
     }
     
     /**
+     * Assign the random puzzle
+     * @param random Randomly created puzzle
+     */
+    public void setRandomPuzzle(final Puzzle random)
+    {
+        this.random = random;
+    }
+    
+    /**
      * Get the puzzle
      * @return The current puzzle in play
      */
     public Puzzle getPuzzle()
     {
-        return puzzles.get(getCurrent());
+        if (getCurrent() < 0)
+        {
+            return random;
+        }
+        else
+        {
+            return puzzles.get(getCurrent());
+        }
     }
     
+    /**
+     * Draw the current puzzle and status message(s)
+     * @param graphics
+     */
     @Override
     public void render(final Graphics graphics)
     {
@@ -373,10 +409,30 @@ public final class Puzzles implements Disposable, IElement
         }
         else
         {
-            graphics.drawString("Level - " + (index+1), 50, 40);
+            if (getCurrent() > -1)
+            {
+                graphics.drawString("Level - " + (index+1), 50, 40);
+            }
+            else
+            {
+                graphics.drawString("Random", 50, 40);
+            }
         }
     }
     
+    /**
+     * Draw the outline of the current puzzle
+     * @param graphics 
+     */
+    public void renderOutline(final Graphics graphics)
+    {
+        getPuzzle().renderOutline(graphics);
+    }
+    
+    /**
+     * Draw the selector cursor
+     * @param graphics 
+     */
     public void renderCursor(final Graphics graphics)
     {
         //make sure we aren't hiding the cursor

@@ -2,4 +2,8 @@
 <images>
     <image id="Cursor">resources/images/game/cursor.gif</image>
     <image id="Background">resources/images/game/background.png</image>
+    <image id="EmptyBackground">resources/images/game/emptyBackground.png</image>
+    <image id="Buildings">resources/images/game/buildings.png</image>
+    <image id="Player">resources/images/game/player.png</image>
+    <image id="Victory">resources/images/game/victory.png</image>
 </images>

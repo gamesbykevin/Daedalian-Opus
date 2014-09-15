@@ -4,6 +4,7 @@ import com.gamesbykevin.framework.base.Cell;
 import com.gamesbykevin.framework.resources.Disposable;
 
 import com.gamesbykevin.daedalianopus.engine.Engine;
+import com.gamesbykevin.daedalianopus.puzzle.piece.PiecesHelper.Type;
 import com.gamesbykevin.daedalianopus.puzzle.Puzzle;
 import com.gamesbykevin.daedalianopus.puzzle.Puzzles;
 import com.gamesbykevin.daedalianopus.shared.IElement;
@@ -16,47 +17,6 @@ import java.util.Random;
 
 public final class Pieces implements Disposable, IElement
 {
-    public enum Type
-    {
-        LightBlueL(102, 255, 255),
-        GrayTetrisPiece(64, 64, 64),
-        BurgondyT(153, 0, 0),
-        PinkBox(255, 0, 255), 
-        GreenLine(0, 255, 0),
-        DarkBlueL(0, 0, 51),
-        RedC(255, 0, 0),
-        BlueZ(0, 0, 255), 
-        BrownPlus(51, 25, 0), 
-        DarkGreenSteps(0, 51, 0), 
-        LightGreenZ(0, 204, 102), 
-        YellowMisc(255, 255, 0);
-        
-        //the values that make up the color
-        private final int red, green, blue;
-        
-        private Type(final int red, final int green, final int blue)
-        {
-            this.red = red;
-            this.green = green;
-            this.blue = blue;
-        }
-        
-        public int getRed()
-        {
-            return this.red;
-        }
-        
-        public int getGreen()
-        {
-            return this.green;
-        }
-        
-        public int getBlue()
-        {
-            return this.blue;
-        }
-    }
-    
     //all pre-existing pieces for the game
     private List<Piece> pieces;
     
@@ -86,7 +46,34 @@ public final class Pieces implements Disposable, IElement
         //create and add all pieces to list
         for (int i = 0; i < Type.values().length; i++)
         {
-            this.pieces.add(create(Type.values()[i]));
+            //add piece
+            addPiece(PiecesHelper.create(Type.values()[i]));
+        }
+    }
+    
+    /**
+     * Add piece to list
+     * @param piece Piece we want to add
+     */
+    public void addPiece(final Piece piece)
+    {
+        this.pieces.add(piece);
+    }
+    
+    /**
+     * Remove ALL random pieces from list.<br>
+     * Random created pieces will not have a Type
+     */
+    public void removeRandomPieces()
+    {
+        for (int i = 0; i < pieces.size(); i++)
+        {
+            //if no type, then it is a random piece
+            if (pieces.get(i).getType() == null)
+            {
+                pieces.remove(i);
+                i--;
+            }
         }
     }
     
@@ -124,6 +111,27 @@ public final class Pieces implements Disposable, IElement
     public Piece getSelection()
     {
         return getPiece(index);
+    }
+    
+    /**
+     * Get piece of specified type
+     * @param type The type of piece we want
+     * @return Piece that corresponds to type, if type not found null is returned
+     */
+    public Piece getPiece(final PiecesHelper.Type type)
+    {
+        for (int i = 0; i < pieces.size(); i++)
+        {
+            Piece piece = pieces.get(i);
+            
+            if (piece != null)
+            {
+                if (piece.getType() == type)
+                    return piece;
+            }
+        }
+        
+        return null;
     }
     
     /**
@@ -171,17 +179,23 @@ public final class Pieces implements Disposable, IElement
     }
     
     /**
+     * Mark all pieces as in-valid
+     */
+    public void markPiecesInvalid()
+    {
+        //default all to invalid
+        for (int i = 0; i < pieces.size(); i++)
+        {
+            pieces.get(i).setValid(false);
+        }
+    }
+    
+    /**
      * Set the current list of pieces that will be used for the current puzzle
      * @param types List of piece types that will be used
      */
     public void setValidPieces(final List<Type> types)
     {
-        //first default all to invalid
-        for (int i = 0; i < pieces.size(); i++)
-        {
-            pieces.get(i).setValid(false);
-        }
-        
         for (int i = 0; i < pieces.size(); i++)
         {
             Piece piece = pieces.get(i);
@@ -250,14 +264,33 @@ public final class Pieces implements Disposable, IElement
         //keep track of piece index
         int count = 0;
         
+        //randomly choose to rotate pieces
+        for (int i = 0; i < pieces.size(); i++)
+        {
+            Piece piece = getPiece(i);
+            
+            //only want pieces in play
+            if (piece == null)
+                continue;
+            
+            if (random.nextBoolean())
+            {
+                piece.rotate();
+            }
+            else if (random.nextBoolean())
+            {
+                piece.flipHorizontal();
+            }
+            else if (random.nextBoolean())
+            {
+                piece.flipVertical();
+            }
+        }
+        
         for (int row = 0; row < puzzle.getRows() + (VERTICAL_COLUMN_REQUIREMENT * 2); row++)
         {
             for (int col = -SIDE_COLUMN_REQUIREMENT; col < puzzle.getCols() + SIDE_COLUMN_REQUIREMENT; col++)
             {
-                //try to skip general puzzle area
-                //if (row >= 0 && row < puzzle.getRows() && col >= 0 && col < puzzle.getCols())
-                //    continue;
-                
                 //we only want to check the pieces that are valid
                 while (getPiece(count) == null)
                 {
@@ -278,9 +311,9 @@ public final class Pieces implements Disposable, IElement
                 boolean valid = true;
                 
                 //make sure all locations are within pieces area
-                for (int i = 0; i < piece.getPieces().size(); i++)
+                for (int i = 0; i < piece.getSmallPieces().size(); i++)
                 {
-                    Cell cell = piece.getPieces().get(i);
+                    Cell cell = piece.getSmallPieces().get(i);
                     
                     final int tx = (int)(puzzle.getX() + ((piece.getCol() + cell.getCol()) * Puzzle.BLOCK_SIZE));
                     final int ty = (int)(puzzle.getY() + ((piece.getRow() + cell.getRow()) * Puzzle.BLOCK_SIZE));
@@ -350,129 +383,6 @@ public final class Pieces implements Disposable, IElement
             pieces.clear();
             pieces = null;
         }
-    }
-    
-    /**
-     * Create a puzzle piece of specified type
-     * @param type The type of piece
-     * @return Piece used to play in game
-     */
-    private static Piece create(final Type type)
-    {
-        //create new piece
-        final Piece piece = new Piece(type);
-        
-        try
-        {
-            //add pieces to piece
-            switch (type)
-            {
-                case LightBlueL:
-                    piece.add(0, 0);
-                    piece.add(1, 0);
-                    piece.add(2, 0);
-                    piece.add(3, 0);
-                    piece.add(0, 1);
-                    break;
-
-                case GrayTetrisPiece:
-                    piece.add(0, 0);
-                    piece.add(1, 0);
-                    piece.add(2, 0);
-                    piece.add(3, 0);
-                    piece.add(1, -1);
-                    break;
-
-                case BurgondyT:
-                    piece.add(0, 0);
-                    piece.add(1, 0);
-                    piece.add(2, 0);
-                    piece.add(2, -1);
-                    piece.add(2, 1);
-                    break;
-
-                case PinkBox:
-                    piece.add(0, 0);
-                    piece.add(0, 1);
-                    piece.add(1, 1);
-                    piece.add(0, 2);
-                    piece.add(1, 2);
-                    break;
-
-                case GreenLine:
-                    piece.add(0, 0);
-                    piece.add(1, 0);
-                    piece.add(2, 0);
-                    piece.add(3, 0);
-                    piece.add(4, 0);
-                    break;
-
-                case DarkBlueL:
-                    piece.add(0, 0);
-                    piece.add(0, 1);
-                    piece.add(0, 2);
-                    piece.add(1, 2);
-                    piece.add(2, 2);
-                    break;
-
-                case RedC:
-                    piece.add(0, 0);
-                    piece.add(1, 0);
-                    piece.add(0, 1);
-                    piece.add(0, 2);
-                    piece.add(1, 2);
-                    break;
-
-                case BlueZ:
-                    piece.add(0, 0);
-                    piece.add(0, 1);
-                    piece.add(1, 1);
-                    piece.add(1, 2);
-                    piece.add(1, 3);
-                    break;
-
-                case BrownPlus:
-                    piece.add(0, 0);
-                    piece.add(1, 0);
-                    piece.add(-1, 0);
-                    piece.add(0, -1);
-                    piece.add(0, 1);
-                    break;
-
-                case DarkGreenSteps:
-                    piece.add(0, 0);
-                    piece.add(0, 1);
-                    piece.add(1, 1);
-                    piece.add(1, 2);
-                    piece.add(2, 2);
-                    break;
-
-                case LightGreenZ:
-                    piece.add(0, 0);
-                    piece.add(0, 1);
-                    piece.add(1, 1);
-                    piece.add(2, 1);
-                    piece.add(2, 2);
-                    break;
-
-                case YellowMisc:
-                    piece.add(0, 0);
-                    piece.add(1, 0);
-                    piece.add(1, 1);
-                    piece.add(2, 1);
-                    piece.add(1, 2);
-                    break;
-
-                default:
-                    throw new Exception("Piece is not mapped here");
-            }
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
-        }
-        
-        return piece;
     }
     
     @Override

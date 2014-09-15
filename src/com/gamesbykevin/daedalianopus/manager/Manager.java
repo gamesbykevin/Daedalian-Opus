@@ -5,6 +5,7 @@ import com.gamesbykevin.framework.menu.Menu;
 import com.gamesbykevin.framework.util.*;
 
 import com.gamesbykevin.daedalianopus.engine.Engine;
+import com.gamesbykevin.daedalianopus.intermission.Intermission;
 import com.gamesbykevin.daedalianopus.menu.CustomMenu;
 import com.gamesbykevin.daedalianopus.menu.CustomMenu.*;
 import com.gamesbykevin.daedalianopus.puzzle.piece.Piece;
@@ -35,8 +36,17 @@ public final class Manager implements IManager
     //our pieces for the specified puzzle
     private Pieces pieces;
     
-    //background image
-    private Image background;
+    //how we will handle switching to the next level
+    private Intermission intermission;
+    
+    //background and victory image
+    private Image background, victory;
+    
+    //are we generating random Levels
+    private CustomMenu.Toggle random;
+    
+    //is the game over
+    private boolean gameover = false;
     
     /**
      * Constructor for Manager, this is the point where we load any menu option configurations
@@ -57,21 +67,43 @@ public final class Manager implements IManager
         //create standard puzzles
         this.puzzles = new Puzzles(engine);
         
-        //set the level based on the menu option
-        this.puzzles.setCurrent(engine.getMenu().getOptionSelectionIndex(CustomMenu.LayerKey.Options, CustomMenu.OptionKey.Level));
-        
         //create object that contains all the pieces
         this.pieces = new Pieces();
         
         //store background image
         this.background = engine.getResources().getGameImage(GameImages.Keys.Background);
         
+        //store victory image
+        this.victory = engine.getResources().getGameImage(GameImages.Keys.Victory);
+        
+        //create new intermission
+        this.intermission = new Intermission(
+            engine.getResources().getGameImage(GameImages.Keys.Buildings),
+            engine.getResources().getGameImage(GameImages.Keys.Player),
+            engine.getResources().getGameImage(GameImages.Keys.EmptyBackground)
+            );
+        
         //maps = new Maps(engine.getResources().getGameImage(GameImages.Keys.Maps), getWindow());
         //hero.setImage(engine.getResources().getGameImage(GameImages.Keys.Heroes));
         //enemies = new Enemies(engine.getResources().getGameImage(GameImages.Keys.Enemies));
         
+        //are we playing random Mode or Campaign
+        random = CustomMenu.Toggle.values()[engine.getMenu().getOptionSelectionIndex(CustomMenu.LayerKey.Options, CustomMenu.OptionKey.Mode)];
+        
+        //set start level
+        puzzles.setCurrent(engine.getMenu().getOptionSelectionIndex(CustomMenu.LayerKey.Options, CustomMenu.OptionKey.Level) - 1);
+        
         //reset game
         reset(engine);
+    }
+    
+    /**
+     * Is random mode selected
+     * @return true if so, false otherwise
+     */
+    public boolean hasRandomMode()
+    {
+        return (random == Toggle.On);
     }
     
     public Puzzles getPuzzles()
@@ -84,20 +116,63 @@ public final class Manager implements IManager
         return this.pieces;
     }
     
+    public Intermission getIntermission()
+    {
+        return this.intermission;
+    }
+    
     @Override
     public void reset(final Engine engine) throws Exception
     {
-        //now assign the valid pieces
-        this.pieces.setValidPieces(puzzles.getPuzzle().getValidPieces());
+        if (hasRandomMode())
+        {
+            //always will be random
+            puzzles.setCurrent(-1);
+            
+            //get the index of the difficulty selected
+            final int index = engine.getMenu().getOptionSelectionIndex(CustomMenu.LayerKey.Options, CustomMenu.OptionKey.Difficulty);
+            
+            //set the next random puzzle
+            puzzles.setRandomPuzzle(PuzzleHelper.createRandom(engine.getRandom(), pieces, PuzzleHelper.Difficulty.values()[index]));
+        }
+        else
+        {
+            //show the intermission except for first level
+            if (puzzles.getCurrent() > -1)
+                intermission.markActive();
+            
+            //set next puzzle
+            puzzles.setCurrent(puzzles.getCurrent() + 1);
+            
+            //determine if the game is over
+            if (puzzles.getCurrent() >= puzzles.getPuzzlesCount())
+            {
+                gameover = true;
+                return;
+            }
+            
+            //mark all pieces invalid
+            pieces.markPiecesInvalid();
+            
+            //now set valid based on current puzzle
+            pieces.setValidPieces(puzzles.getPuzzle().getValidPieces());
+        }
+        
+        //position in center
+        puzzles.resetPuzzleLocation();
         
         //now scramble the pieces on screen
-        this.pieces.scramble(puzzles, engine.getRandom());
-        
+        pieces.scramble(puzzles, engine.getRandom());
+
         //stop all sound
         engine.getResources().stopAllSound();
-        
-        //play main theme
-        engine.getResources().playGameAudio(GameAudio.Keys.MusicTheme);
+
+        //if no intermission start playing theme
+        if (!intermission.isActive())
+        {
+            //play main theme
+            engine.getResources().playGameAudio(GameAudio.Keys.MusicTheme, true);
+        }
     }
     
     @Override
@@ -110,6 +185,11 @@ public final class Manager implements IManager
     public void setWindow(final Rectangle window)
     {
         this.window = new Rectangle(window);
+    }
+    
+    private boolean hasGameover()
+    {
+        return this.gameover;
     }
     
     /**
@@ -133,6 +213,12 @@ public final class Manager implements IManager
             pieces = null;
         }
         
+        if (intermission != null)
+        {
+            intermission.dispose();
+            intermission = null;
+        }
+        
         try
         {
             //recycle objects
@@ -152,11 +238,22 @@ public final class Manager implements IManager
     @Override
     public void update(final Engine engine) throws Exception
     {
-        //update piece location(s)
-        pieces.update(engine);
+        if (hasGameover())
+            return;
         
-        //update puzzle etc...
-        puzzles.update(engine);
+        if (intermission.isActive())
+        {
+            //update object
+            intermission.update(engine);
+        }
+        else
+        {
+            //update piece location(s)
+            pieces.update(engine);
+
+            //update puzzle etc...
+            puzzles.update(engine);
+        }
     }
     
     /**
@@ -166,16 +263,35 @@ public final class Manager implements IManager
     @Override
     public void render(final Graphics graphics)
     {
-        //draw the background
-        graphics.drawImage(background, 0, 0, null);
-        
-        //draw the current puzzle
-        this.puzzles.render(graphics);
-        
-        //draw the pieces
-        this.pieces.render(graphics);
-        
-        //draw the cursor
-        this.puzzles.renderCursor(graphics);
+        if (hasGameover())
+        {
+            //draw the victory screen
+            graphics.drawImage(victory, 0, 0, null);
+        }
+        else
+        {
+            if (intermission.isActive())
+            {
+                //draw the intermission
+                this.intermission.render(graphics);
+            }
+            else
+            {
+                //draw the background
+                graphics.drawImage(background, 0, 0, null);
+
+                //draw the current puzzle
+                this.puzzles.render(graphics);
+
+                //draw the pieces
+                this.pieces.render(graphics);
+
+                //draw the outline of the current puzzle
+                this.puzzles.renderOutline(graphics);
+
+                //draw the cursor
+                this.puzzles.renderCursor(graphics);
+            }
+        }
     }
 }

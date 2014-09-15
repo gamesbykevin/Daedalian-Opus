@@ -5,7 +5,7 @@ import com.gamesbykevin.framework.base.Sprite;
 import com.gamesbykevin.framework.resources.Disposable;
 
 import com.gamesbykevin.daedalianopus.puzzle.piece.Piece;
-import com.gamesbykevin.daedalianopus.puzzle.piece.Pieces;
+import com.gamesbykevin.daedalianopus.puzzle.piece.PiecesHelper.Type;
 
 import java.awt.Color;
 import java.awt.BasicStroke;
@@ -20,7 +20,7 @@ public final class Puzzle extends Sprite implements Disposable
      * The size of the puzzle.<br>
      * Not all areas within these dimensions are valid
      */
-    private final int cols, rows;
+    private int cols, rows;
     
     /**
      * The valid locations for this puzzle
@@ -39,29 +39,44 @@ public final class Puzzle extends Sprite implements Disposable
     private static final int LINE_THICKNESS = 2;
     
     //the pieces needed to solve the puzzle
-    private List<Pieces.Type> pieces;
+    private List<Type> pieces;
     
-    //the type of puzzle
-    private final PuzzleHelper.Type type;
-    
+    //has this puzzle been solved
     private boolean solved = false;
     
     public Puzzle(final PuzzleHelper.Type type)
     {
-        //store the type of puzzle
-        this.type = type;
+        this();
         
         //store the dimensions
-        this.cols = type.getCol();
-        this.rows = type.getRow();
+        setSize(type.getCol(), type.getRow());
+    }
+    
+    public Puzzle(final int cols, final int rows)
+    {
+        this();
         
+        setSize(cols, rows);
+    }
+    
+    private void setSize(final int cols, final int rows)
+    {
+        this.cols = cols;
+        this.rows = rows;
+    }
+    
+    private Puzzle()
+    {
         //create new list that contains the valid locations
         this.valid = new ArrayList<>();
         
-        //the list of pieces for this puzzle
+        //the list of pieces used for this puzzle
         this.pieces = new ArrayList<>();
     }
     
+    /**
+     * Flag the puzzle as solved
+     */
     public void markSolved()
     {
         this.solved = true;
@@ -69,23 +84,19 @@ public final class Puzzle extends Sprite implements Disposable
     
     /**
      * Has the puzzle been solved
-     * @return true if all pieces in play have been placed inside the puzzle, false otherwise
+     * @return true if all pieces in play have been placed inside the puzzle without intersecting, false otherwise
      */
     public boolean isSolved()
     {
         return this.solved;
     }
     
-    public PuzzleHelper.Type getType()
-    {
-        return this.type;
-    }
-    
     /**
-     * Add piece to puzzle
-     * @param piece The puzzle piece needed to solve puzzle.
+     * Mark type of piece as valid for play.<br>
+     * Type will not be added if it already exists.
+     * @param type The type of piece to be valid for play
      */
-    public void add(final Pieces.Type type)
+    public void add(final Type type)
     {
         try
         {
@@ -103,7 +114,7 @@ public final class Puzzle extends Sprite implements Disposable
         }
     }
     
-    public List<Pieces.Type> getValidPieces()
+    public List<Type> getValidPieces()
     {
         return this.pieces;
     }
@@ -135,9 +146,9 @@ public final class Puzzle extends Sprite implements Disposable
      */
     public boolean intersects(final Piece piece)
     {
-        for (int i = 0; i < piece.getPieces().size(); i++)
+        for (int i = 0; i < piece.getSmallPieces().size(); i++)
         {
-            Cell cell = piece.getPieces().get(i);
+            Cell cell = piece.getSmallPieces().get(i);
             
             final int col = (int)(cell.getCol() + piece.getCol());
             final int row = (int)(cell.getRow() + piece.getRow());
@@ -158,9 +169,9 @@ public final class Puzzle extends Sprite implements Disposable
      */
     public boolean isValid(final Piece piece)
     {
-        for (int i = 0; i < piece.getPieces().size(); i++)
+        for (int i = 0; i < piece.getSmallPieces().size(); i++)
         {
-            Cell cell = piece.getPieces().get(i);
+            Cell cell = piece.getSmallPieces().get(i);
             
             final int col = (int)(piece.getCol() + cell.getCol());
             final int row = (int)(piece.getRow() + cell.getRow());
@@ -206,17 +217,9 @@ public final class Puzzle extends Sprite implements Disposable
     
     public void render(final Graphics graphics)
     {
-        Graphics2D g2d = (Graphics2D)graphics;
+        graphics.setColor(Color.WHITE);
         
-        if (stroke == null)
-            stroke = new BasicStroke(LINE_THICKNESS);
-        
-        //set line thickness
-        g2d.setStroke(stroke);
-        
-        g2d.setColor(Color.WHITE);
-        
-        //draw the border for the puzzle
+        //fill the background for the puzzle
         for (int row = 0; row < getRows(); row++)
         {
             for (int col = 0; col < getCols(); col++)
@@ -228,9 +231,21 @@ public final class Puzzle extends Sprite implements Disposable
                 final int startX = (int)(getX() + (col * BLOCK_SIZE));
                 final int startY = (int)(getY() + (row * BLOCK_SIZE));
                 
-                g2d.fillRect(startX, startY, BLOCK_SIZE, BLOCK_SIZE);
+                graphics.fillRect(startX, startY, BLOCK_SIZE, BLOCK_SIZE);
             }
         }
+    }
+    
+    public void renderOutline(final Graphics graphics)
+    {
+        //need graphics 2d for line thickness
+        Graphics2D g2d = (Graphics2D)graphics;
+        
+        if (stroke == null)
+            stroke = new BasicStroke(LINE_THICKNESS);
+        
+        //set line thickness
+        g2d.setStroke(stroke);
         
         g2d.setColor(Color.DARK_GRAY);
         

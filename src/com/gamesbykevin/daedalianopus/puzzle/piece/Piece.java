@@ -1,44 +1,64 @@
 package com.gamesbykevin.daedalianopus.puzzle.piece;
 
+import com.gamesbykevin.daedalianopus.puzzle.piece.PiecesHelper.Type;
 import com.gamesbykevin.daedalianopus.puzzle.Puzzle;
 import com.gamesbykevin.framework.base.Cell;
 import com.gamesbykevin.framework.base.Sprite;
 import com.gamesbykevin.framework.resources.Disposable;
-import java.awt.Color;
 
+import java.awt.Color;
 import java.awt.Graphics;
-import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 
 public final class Piece extends Sprite implements Disposable
 {
-    /*
-     * The little pieces that make up the piece
-     */
-    private List<Cell> pieces;
+    //the little pieces that create this piece
+    private List<Cell> smallPieces;
     
     //the color of the piece
-    private final Color color;
+    private Color color;
+    
+    //the outline color of the shape
+    private Color outline;
     
     //is the piece currently being used
     private boolean valid = false;
     
-    private final Pieces.Type type;
+    private Type type;
     
-    public Piece(Pieces.Type type)
+    /**
+     * Create piece of specified type
+     * @param type The type of Piece we are creating
+     */
+    public Piece(final Type type)
     {
+        this();
+        
         //store the type
         this.type = type;
         
         //create new color
-        this.color = new Color(type.getRed(), type.getGreen(), type.getBlue());
-        
-        //create list of small pieces that make this piece
-        this.pieces = new ArrayList<>();
+        setColor(type.getRed(), type.getGreen(), type.getBlue());
     }
     
-    public Pieces.Type getType()
+    /**
+     * Create random Piece
+     */
+    public Piece()
+    {
+        //create list of small pieces that make this piece
+        this.smallPieces = new ArrayList<>();
+    }
+    
+    public void setColor(final int red, final int green, final int blue)
+    {
+        this.color = new Color(red, green, blue);
+        
+        this.outline = color.darker();
+    }
+    
+    public Type getType()
     {
         return this.type;
     }
@@ -47,9 +67,14 @@ public final class Piece extends Sprite implements Disposable
      * Get the list of pieces
      * @return The list of pieces that make up this piece
      */
-    public List<Cell> getPieces()
+    public List<Cell> getSmallPieces()
     {
-        return this.pieces;
+        return this.smallPieces;
+    }
+    
+    public int getSmallPieceCount()
+    {
+        return this.smallPieces.size();
     }
     
     /**
@@ -70,14 +95,23 @@ public final class Piece extends Sprite implements Disposable
         return this.valid;
     }
     
+    /**
+     * Add small piece to this Piece
+     * @param cell The location of the small piece compared to the origin of this piece (0,0)
+     */
     public void add(final Cell cell)
     {
         add((int)cell.getCol(), (int)cell.getRow());
     }
     
+    public void add(final double col, final double row)
+    {
+        add((int)col, (int)row);
+    }
+    
     public void add(final int col, final int row)
     {
-        this.pieces.add(new Cell(col, row));
+        this.smallPieces.add(new Cell(col, row));
     }
     
     /**
@@ -85,14 +119,14 @@ public final class Piece extends Sprite implements Disposable
      */
     public void rotate()
     {
-        for (int i = 0; i < pieces.size(); i++)
+        for (int i = 0; i < smallPieces.size(); i++)
         {
             //get the currect part of this piece
-            Cell cell = pieces.get(i);
+            Cell cell = smallPieces.get(i);
             
             //store the current location
-            final double col = pieces.get(i).getCol();
-            final double row = pieces.get(i).getRow();
+            final double col = smallPieces.get(i).getCol();
+            final double row = smallPieces.get(i).getRow();
             
             //now flip the piece
             cell.setCol(row);
@@ -106,10 +140,10 @@ public final class Piece extends Sprite implements Disposable
     public void flipHorizontal()
     {
         //while flipping horizontal the y (row) will stay the same only the x (column) will change
-        for (int i = 0; i < pieces.size(); i++)
+        for (int i = 0; i < smallPieces.size(); i++)
         {
             //get the currect part of this piece
-            Cell cell = pieces.get(i);
+            Cell cell = smallPieces.get(i);
             
             //flip column
             cell.setCol(-cell.getCol());
@@ -122,10 +156,10 @@ public final class Piece extends Sprite implements Disposable
     public void flipVertical()
     {
         //while flipping vertical the x (column) will stay the same only the y (row) will change
-        for (int i = 0; i < pieces.size(); i++)
+        for (int i = 0; i < smallPieces.size(); i++)
         {
             //get the currect part of this piece
-            Cell cell = pieces.get(i);
+            Cell cell = smallPieces.get(i);
             
             //flip row
             cell.setRow(-cell.getRow());
@@ -135,8 +169,10 @@ public final class Piece extends Sprite implements Disposable
     @Override
     public void dispose()
     {
-        this.pieces.clear();
-        this.pieces = null;
+        this.type = null;
+        this.color = null;
+        this.smallPieces.clear();
+        this.smallPieces = null;
     }
     
     /**
@@ -146,9 +182,9 @@ public final class Piece extends Sprite implements Disposable
      */
     public boolean hasCollision(final Piece piece)
     {
-        for (int i = 0; i < piece.getPieces().size(); i++)
+        for (int i = 0; i < piece.getSmallPieces().size(); i++)
         {
-            Cell cell1 = piece.getPieces().get(i);
+            Cell cell1 = piece.getSmallPieces().get(i);
             
             //calculate the absolute row, col for this piece
             final int row1 = (int)(cell1.getRow() + piece.getRow());
@@ -174,9 +210,9 @@ public final class Piece extends Sprite implements Disposable
      */
     public boolean hasCollision(final int col, final int row)
     {
-        for (int i = 0; i < pieces.size(); i++)
+        for (int i = 0; i < smallPieces.size(); i++)
         {
-            Cell cell = pieces.get(i);
+            Cell cell = smallPieces.get(i);
             
             //calculate the absolute row, col for this piece
             final int row2 = (int)(cell.getRow() + getRow());
@@ -195,14 +231,26 @@ public final class Piece extends Sprite implements Disposable
     {
         graphics.setColor(color);
         
-        for (int i = 0; i < pieces.size(); i++)
+        for (int i = 0; i < smallPieces.size(); i++)
         {
-            Cell cell = pieces.get(i);
+            Cell cell = smallPieces.get(i);
             
             final int x = (int)(getX() + (cell.getCol() * Puzzle.BLOCK_SIZE));
             final int y = (int)(getY() + (cell.getRow() * Puzzle.BLOCK_SIZE));
             
             graphics.fillRect(x, y, Puzzle.BLOCK_SIZE, Puzzle.BLOCK_SIZE);
+        }
+        
+        graphics.setColor(outline);
+        
+        for (int i = 0; i < smallPieces.size(); i++)
+        {
+            Cell cell = smallPieces.get(i);
+            
+            final int x = (int)(getX() + (cell.getCol() * Puzzle.BLOCK_SIZE));
+            final int y = (int)(getY() + (cell.getRow() * Puzzle.BLOCK_SIZE));
+            
+            graphics.drawRect(x, y, Puzzle.BLOCK_SIZE, Puzzle.BLOCK_SIZE);
         }
     }
 }

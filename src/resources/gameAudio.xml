@@ -3,6 +3,7 @@
     <sound id="MusicTheme">resources/audio/game/music/Theme.mp3</sound>
     <sound id="MusicVictory">resources/audio/game/music/Victory.mp3</sound>
     <sound id="MusicGameOver">resources/audio/game/music/GameOver.mp3</sound>
+    <sound id="MusicIntermission">resources/audio/game/music/Intermission.mp3</sound>
     
     <sound id="SfxFlip">resources/audio/game/sfx/flip.wav</sound>
     <sound id="SfxInvalid">resources/audio/game/sfx/invalid.wav</sound>

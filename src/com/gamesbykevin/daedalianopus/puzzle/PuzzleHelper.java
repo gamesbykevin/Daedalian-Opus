@@ -1,9 +1,24 @@
 package com.gamesbykevin.daedalianopus.puzzle;
 
+import com.gamesbykevin.framework.base.Cell;
+import com.gamesbykevin.framework.labyrinth.Location;
+import com.gamesbykevin.framework.labyrinth.Location.Wall;
+
+import com.gamesbykevin.daedalianopus.puzzle.piece.Piece;
 import com.gamesbykevin.daedalianopus.puzzle.piece.Pieces;
+import com.gamesbykevin.daedalianopus.puzzle.piece.PiecesHelper;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 public class PuzzleHelper 
 {
+    public enum Difficulty
+    {
+        Easy, Medium, Hard
+    }
+    
     public enum Type
     {
         Level1(5, 3),
@@ -62,6 +77,383 @@ public class PuzzleHelper
         }
     }
     
+    //the minimum,maximum dimensions when creating random puzzle for each difficulty
+    private static final int MAX_DIMENSIONS_EASY = 6;
+    private static final int MIN_DIMENSIONS_EASY = 5;
+    private static final int MAX_DIMENSIONS_MEDIUM = 9;
+    private static final int MIN_DIMENSIONS_MEDIUM = 7;
+    private static final int MAX_DIMENSIONS_HARD = 12;
+    private static final int MIN_DIMENSIONS_HARD = 10;
+    
+    //the maximum amount of small pieces to create a piece
+    private static final int MAX_SMALL_PIECE_SIZE = 7;
+    
+    //the minimum amount of small pieces to create a piece
+    private static final int MIN_SMALL_PIECE_SIZE = 4;
+    
+    //we can only join a piece where the count of that pieces group is less than 3
+    private static final int MERGE_COUNT_MAX = 2;
+    
+    /**
+     * Count how many locations have the same group
+     * @param locations Array of locations to check
+     * @param group The group we are looking for
+     * @return the total number of locations with the matching group
+     */
+    private static int getCount(final Location[][] locations, final long group)
+    {
+        int count = 0;
+        
+        for (int col = 0; col < locations[0].length; col++)
+        {
+            for (int row = 0; row < locations.length; row++)
+            {
+                if (locations[row][col].getGroup() == group)
+                    count++;
+            }
+        }
+        
+        return count;
+    }
+    
+    /**
+     * Mark all locations of the specified group as visited
+     * @param locations Array of locations to check
+     * @param group The group we are looking for
+     */
+    private static void markVisited(final Location[][] locations, final long group)
+    {
+        for (int col = 0; col < locations[0].length; col++)
+        {
+            for (int row = 0; row < locations.length; row++)
+            {
+                if (locations[row][col].getGroup() == group)
+                    locations[row][col].markVisited();
+            }
+        }
+    }
+    
+    /**
+     * Are all locations been visited
+     * @param locations Array of locations to check
+     * @return true if so, false otherwise
+     */
+    private static boolean allVisited(final Location[][] locations)
+    {
+        for (int col = 0; col < locations[0].length; col++)
+        {
+            for (int row = 0; row < locations.length; row++)
+            {
+                if (!locations[row][col].hasVisited())
+                    return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Create a random puzzle
+     * @param random Object used to make random decisions
+     * @param pieces Collection of pieces that can be used for play
+     * @param difficulty The difficulty level, which will determine the size of the puzzle
+     * @return A puzzle with valid locations and types of pieces allowed for play
+     */
+    public static Puzzle createRandom(final Random random, final Pieces pieces, final Difficulty difficulty) throws Exception
+    {
+        //remove any existing random pieces
+        pieces.removeRandomPieces();
+        
+        //set all remaining as invalid
+        pieces.markPiecesInvalid();
+        
+        //pick random size for our puzzle
+        final int columns, rows;
+        
+        switch (difficulty)
+        {
+            case Easy:
+            default:
+                columns = random.nextInt(MAX_DIMENSIONS_EASY - MIN_DIMENSIONS_EASY) + MIN_DIMENSIONS_EASY;
+                rows = random.nextInt(MAX_DIMENSIONS_EASY - MIN_DIMENSIONS_EASY) + MIN_DIMENSIONS_EASY;
+                break;
+                
+            case Medium:
+                columns = random.nextInt(MAX_DIMENSIONS_MEDIUM - MIN_DIMENSIONS_MEDIUM) + MIN_DIMENSIONS_MEDIUM;
+                rows = random.nextInt(MAX_DIMENSIONS_MEDIUM - MIN_DIMENSIONS_MEDIUM) + MIN_DIMENSIONS_MEDIUM;
+                break;
+                
+            case Hard:
+                columns = random.nextInt(MAX_DIMENSIONS_HARD - MIN_DIMENSIONS_HARD) + MIN_DIMENSIONS_HARD;
+                rows = random.nextInt(MAX_DIMENSIONS_HARD - MIN_DIMENSIONS_HARD) + MIN_DIMENSIONS_HARD;
+                break;
+        }
+        
+        //create new puzzle of this size
+        Puzzle puzzle = new Puzzle(columns, rows);
+        
+        //array of locations
+        Location[][] locations = new Location[puzzle.getRows()][puzzle.getCols()];
+        
+        //list for walls
+        List<Wall> walls = new ArrayList<>();
+        
+        //list of groups
+        List<Long> groups = new ArrayList<>();
+        
+        //create all locations
+        for (int col = 0; col < locations[0].length; col++)
+        {
+            for (int row = 0; row < locations.length; row++)
+            {
+                //create new location
+                locations[row][col] = new Location(col, row);
+            }
+        }
+        
+        while (!allVisited(locations))
+        {
+            //add all locations to list
+            for (int col = 0; col < locations[0].length; col++)
+            {
+                for (int row = 0; row < locations.length; row++)
+                {
+                    //get the group of the current location
+                    final long group = locations[row][col].getGroup();
+                    
+                    //clear wall selection list
+                    walls.clear();
+
+                    //count how many already belong to the current group
+                    final int groupCount = getCount(locations, group);
+                    
+                    int directionCount = 0;
+                    
+                    if (row < locations.length - 1)
+                    {
+                        Location south = locations[row + 1][col];
+                        
+                        if (!south.hasVisited() && south.getGroup() != group)
+                        {
+                            directionCount = getCount(locations, south.getGroup());
+                            
+                            if (groupCount + directionCount <= MAX_SMALL_PIECE_SIZE && directionCount <= MERGE_COUNT_MAX)
+                            {
+                                walls.add(Wall.South);
+                            }
+                        }
+                    }
+                    
+                    if (row > 0)
+                    {
+                        Location north = locations[row - 1][col]; 
+                        
+                        if (!north.hasVisited() && north.getGroup() != group)
+                        {
+                            directionCount = getCount(locations, north.getGroup());
+                            
+                            if (groupCount + directionCount <= MAX_SMALL_PIECE_SIZE && directionCount <= MERGE_COUNT_MAX)
+                            {
+                                walls.add(Wall.North);
+                            }
+                        }
+                    }
+                    
+                    if (col < locations[0].length - 1)
+                    {
+                        Location east = locations[row][col + 1];
+                        
+                        if (!east.hasVisited() && east.getGroup() != group)
+                        {
+                            directionCount = getCount(locations, east.getGroup());
+                            
+                            if (groupCount + directionCount <= MAX_SMALL_PIECE_SIZE && directionCount <= MERGE_COUNT_MAX)
+                            {
+                                walls.add(Wall.East);
+                            }
+                        }
+                    }
+                    
+                    if (col > 0)
+                    {
+                        Location west = locations[row][col - 1];
+                        
+                        if (!west.hasVisited() && west.getGroup() != group)
+                        {
+                            directionCount = getCount(locations, west.getGroup());
+                            
+                            if (groupCount + directionCount <= MAX_SMALL_PIECE_SIZE && directionCount <= MERGE_COUNT_MAX)
+                            {
+                                walls.add(Wall.West);
+                            }
+                        }
+                    }
+
+                    //if there is an option continue
+                    if (!walls.isEmpty())
+                    {
+                        //pick random direction
+                        Wall wall = walls.get(random.nextInt(walls.size()));
+
+                        switch (wall)
+                        {
+                            case North:
+                                //mark as part of group
+                                locations[row - 1][col].setGroup(group);
+                                break;
+
+                            case South:
+                                locations[row + 1][col].setGroup(group);
+                                break;
+
+                            case East:
+                                locations[row][col + 1].setGroup(group);
+                                break;
+
+                            case West:
+                                locations[row][col - 1].setGroup(group);
+                                break;
+                        }
+
+                        //count how many are part of group
+                        final int count = getCount(locations, group);
+
+                        //if meet maximum requirements mark all visited
+                        if (count >= MAX_SMALL_PIECE_SIZE)
+                        {
+                            //mark all of this group visited
+                            markVisited(locations, group);
+                        }
+                    }
+                    else
+                    {
+                        //mark all of this group visited
+                        markVisited(locations, group);
+                    }
+                }
+            }
+        }
+        
+        //get all unique groups in the locations
+        for (int col = 0; col < locations[0].length; col++)
+        {
+            for (int row = 0; row < locations.length; row++)
+            {
+                final long group = locations[row][col].getGroup();
+                
+                boolean valid = true;
+                
+                for (int i = 0; i < groups.size(); i++)
+                {
+                    if (groups.get(i) == group)
+                    {
+                        valid = false;
+                        break;
+                    }
+                }
+                
+                if (valid)
+                    groups.add(group);
+            }
+        }
+        
+        //this list will contain invalid locations for puzzle
+        List<Cell> invalid = new ArrayList<>();
+        
+        //list of smaller pieces to create piece
+        List<Cell> cells = new ArrayList<>();
+        
+        //now check each group to see if we have enough to make a piece
+        for (int i = 0; i < groups.size(); i++)
+        {
+            //list of small pieces that make a piece
+            cells.clear();
+
+            //base point of piece
+            Cell base = null;
+
+            for (int row = 0; row < locations.length; row++)
+            {
+                for (int col = 0; col < locations[0].length; col++)
+                {
+                    if (locations[row][col].getGroup() == groups.get(i))
+                    {
+                        cells.add(new Cell(col, row));
+
+                        if (base == null)
+                            base = new Cell(col, row);
+                    }
+                }
+            }
+            
+            //we have enough to create a piece
+            if (cells.size() >= MIN_SMALL_PIECE_SIZE)
+            {
+                //create new piece
+                Piece piece = new Piece();
+
+                //add small pieces to puzzle
+                for (int z = 0; z < cells.size(); z++)
+                {
+                    piece.add(cells.get(z).getCol() - base.getCol(), cells.get(z).getRow() - base.getRow());
+                }
+                
+                //choose random color
+                piece.setColor(random.nextInt(200) + 56, random.nextInt(200) + 56, random.nextInt(200) + 56);
+
+                //yes piece is valid
+                piece.setValid(true);
+
+                if (random.nextBoolean())
+                    piece.rotate();
+                if (random.nextBoolean())
+                    piece.flipVertical();
+                if (random.nextBoolean())
+                    piece.flipHorizontal();
+
+                //add piece to list
+                pieces.addPiece(piece);
+            }
+            else
+            {
+                //not enough for piece, so mark all invalid
+                for (int z = 0; z < cells.size(); z++)
+                {
+                    invalid.add(cells.get(z));
+                }
+            }
+        }
+        
+        //add valid locations
+        for (int col = 0; col < puzzle.getCols(); col++)
+        {
+            for (int row = 0; row < puzzle.getRows(); row++)
+            {
+                boolean valid = true;
+                
+                for (int z = 0; z < invalid.size(); z++)
+                {
+                    //if invalid mark valid false
+                    if (invalid.get(z).equals(col, row))
+                    {
+                        valid = false;
+                        break;
+                    }
+                }
+                
+                if (valid)
+                    puzzle.add(col, row);
+            }
+        }
+        
+        return puzzle;
+    }
+    
+    /**
+     * Create puzzle
+     * @param type The puzzle we want to create
+     * @return A puzzle with valid locations and types of pieces allowed for play
+     */
     public static Puzzle create(final Type type)
     {
         Puzzle puzzle = null;
@@ -346,473 +738,473 @@ public class PuzzleHelper
             switch (type)
             {
                 case Level1:
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
                     break;
                     
                 case Level2:
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
                     break;
                     
                 case Level3:
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
                     break;
                     
                 case Level4:
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
                     break;
                     
                 case Level5:
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.RedC);
                     break;
                     
                 case Level6:
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
                     break;
                     
                 case Level7:
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
                     break;
                     
                 case Level8:
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
                     break;
                     
                 case Level9:
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
                     break;
 
                 case Level10:
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
                     break;
                     
                 case Level11:
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
                     break;
 
                 case Level12:
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
                     break;
                     
                 case Level13:
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
                     break;
 
                 case Level14:
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
                     break;
 
                 case Level15:
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
                     break;
 
                 case Level16:
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.RedC);
                     break;
 
                 case Level17:
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
                     break;
                     
                 case Level18:
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.RedC);
                     break;
 
                 case Level19:
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
                     break;
 
                 case Level20:
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
                     break;
 
                 case Level21:
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.RedC);
                     break;
 
                 case Level22:
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
                     break;
 
                 case Level23:
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
                     break;
 
                 case Level24:
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.RedC);
                     break;
 
                 case Level25:
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
                     break;
 
                 case Level26:
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
                     break;
 
                 case Level27:
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.RedC);
                     break;
 
                 case Level28:
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
                     break;
 
                 case Level29:
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
                     break;
 
                 case Level30:
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
                     break;
 
                 case Level31:
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
                     break;
 
                 case Level32:
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
                     break;
 
                 case Level33:
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.RedC);
                     break;
 
                 case Level34:
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
                     break;
 
                 case Level35:
-                    puzzle.add(Pieces.Type.BurgondyT);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
                     break;
 
                 case Level36:
-                    puzzle.add(Pieces.Type.GreenLine);
-                    puzzle.add(Pieces.Type.DarkBlueL);
-                    puzzle.add(Pieces.Type.PinkBox);
-                    puzzle.add(Pieces.Type.YellowMisc);
-                    puzzle.add(Pieces.Type.DarkGreenSteps);
-                    puzzle.add(Pieces.Type.BrownPlus);
-                    puzzle.add(Pieces.Type.LightGreenZ);
-                    puzzle.add(Pieces.Type.RedC);
-                    puzzle.add(Pieces.Type.GrayTetrisPiece);
-                    puzzle.add(Pieces.Type.BlueZ);
-                    puzzle.add(Pieces.Type.LightBlueL);
-                    puzzle.add(Pieces.Type.BurgondyT);
+                    puzzle.add(PiecesHelper.Type.GreenLine);
+                    puzzle.add(PiecesHelper.Type.DarkBlueL);
+                    puzzle.add(PiecesHelper.Type.PinkBox);
+                    puzzle.add(PiecesHelper.Type.YellowMisc);
+                    puzzle.add(PiecesHelper.Type.DarkGreenSteps);
+                    puzzle.add(PiecesHelper.Type.BrownPlus);
+                    puzzle.add(PiecesHelper.Type.LightGreenZ);
+                    puzzle.add(PiecesHelper.Type.RedC);
+                    puzzle.add(PiecesHelper.Type.GrayTetrisPiece);
+                    puzzle.add(PiecesHelper.Type.BlueZ);
+                    puzzle.add(PiecesHelper.Type.LightBlueL);
+                    puzzle.add(PiecesHelper.Type.BurgondyT);
                     break;
 
                 default:

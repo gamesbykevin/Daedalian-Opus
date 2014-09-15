@@ -28,7 +28,7 @@
         <pause>true</pause>
         <duration>15000</duration>
         <image>resources/images/menu/background.png</image>
-        <optionContainerRatio>0.95</optionContainerRatio>
+        <optionContainerRatio>0.65</optionContainerRatio>
         <optionBorderThickness>1.5</optionBorderThickness>
         <title>Daedalian Opus</title>
         <backgroundMusicLocation>resources/audio/menu/music/title.mp3</backgroundMusicLocation>
@@ -45,12 +45,16 @@
         <pause>true</pause>
         <duration>10000</duration>
         <image>resources/images/menu/background.png</image>
-        <optionContainerRatio>0.95</optionContainerRatio>
+        <optionContainerRatio>0.65</optionContainerRatio>
         <optionBorderThickness>1.5</optionBorderThickness>
         <title>Options</title>
         <backgroundMusicLocation>resources/audio/menu/music/options.mp3</backgroundMusicLocation>
         <optionSoundLocation>resources/audio/menu/sound/selection.wav</optionSoundLocation>
-        <options name="Starting Level: " id="Level">
+        <options name="Mode: " id="Mode">
+            <option>Campaign</option>
+            <option>Random</option>
+        </options>
+        <options name="Campaign Mode Start: " id="Level">
             <option>1</option>
             <option>2</option>
             <option>3</option>
@@ -88,12 +92,10 @@
             <option>35</option>
             <option>36</option>
         </options>
-        <options name="Starting Lives: " id="Lives">
-            <option>5</option>
-            <option>10</option>
-            <option>25</option>
-            <option>99</option>
-            <option>1</option>
+        <options name="Random Mode Difficulty: " id="Difficulty">
+            <option>Easy</option>
+            <option>Medium</option>
+            <option>Hard</option>
         </options>
         <options name="Full Screen: " id="FullScreen">
             <option>Off</option>
@@ -106,14 +108,14 @@
         <force>false</force>
         <pause>true</pause>
         <duration></duration>
-        <image>resources/images/menu/Controls.jpg</image>
+        <image>resources/images/menu/Controls.png</image>
     </layer>
     <layer id="Instructions" next="MainTitle">
         <transition>NONE</transition>
         <force>false</force>
         <pause>true</pause>
         <duration></duration>
-        <image>resources/images/menu/Instructions.jpg</image>
+        <image>resources/images/menu/Instructions.png</image>
     </layer>
     <layer id="GameStart">
         <!-- THIS LAYER IS INTENTIONALLY LEFT BLANK, THIS IS WHERE MAIN GAMEPLAY WILL START -->
@@ -124,7 +126,7 @@
         <pause>true</pause>
         <duration></duration>
         <image></image>
-        <optionContainerRatio>0.95</optionContainerRatio>
+        <optionContainerRatio>0.65</optionContainerRatio>
         <optionBorderThickness>1.5</optionBorderThickness>
         <title>Options</title>
         <backgroundMusicLocation></backgroundMusicLocation>
@@ -147,7 +149,7 @@
         <pause>true</pause>
         <duration></duration>
         <image></image>
-        <optionContainerRatio>0.95</optionContainerRatio>
+        <optionContainerRatio>0.65</optionContainerRatio>
         <optionBorderThickness>1.5</optionBorderThickness>
         <title>Reset?</title>
         <options name="Yes" next="CreateNewGame" id="CreateNewGame"></options>
@@ -161,7 +163,7 @@
         <pause>true</pause>
         <duration></duration>
         <image></image>
-        <optionContainerRatio>0.95</optionContainerRatio>
+        <optionContainerRatio>0.65</optionContainerRatio>
         <optionBorderThickness>1.5</optionBorderThickness>
         <title>Leave?</title>
         <options name="Yes" next="ExitGameConfirmed" id="MainTitle"></options>
