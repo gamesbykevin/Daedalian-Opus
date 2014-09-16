@@ -6,7 +6,6 @@ import com.gamesbykevin.framework.resources.Disposable;
 import com.gamesbykevin.framework.util.Timer;
 
 import com.gamesbykevin.daedalianopus.engine.Engine;
-import com.gamesbykevin.daedalianopus.puzzle.piece.Piece;
 import com.gamesbykevin.daedalianopus.puzzle.piece.Pieces;
 import com.gamesbykevin.daedalianopus.resources.GameAudio;
 import com.gamesbykevin.daedalianopus.resources.GameImages;
