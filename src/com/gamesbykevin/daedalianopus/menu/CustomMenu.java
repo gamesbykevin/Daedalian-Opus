@@ -53,7 +53,7 @@ public final class CustomMenu extends Menu implements IElement
     }
     
     //is full screen enabled, default false
-    private Toggle fullWindow = Toggle.Off;
+    private Toggle fullscreen = Toggle.Off;
     
     //does the container have focus
     private Toggle focus = Toggle.On;
@@ -142,7 +142,7 @@ public final class CustomMenu extends Menu implements IElement
         if (!super.hasFinished())
         {
             //the option selection for the sound and fullscreen
-            Toggle tmpFullWindow = fullWindow;
+            Toggle tmpFullscreen = fullscreen;
             
             //are we currently in the in-game options
             final boolean isInGameOptionsLayer = super.hasCurrent(LayerKey.OptionsInGame);
@@ -169,16 +169,23 @@ public final class CustomMenu extends Menu implements IElement
                 if (!enabled)
                     engine.getResources().stopAllSound();
                 
+                //if the audio is off then on, or on then off set the value in the menu
+                if (!isEnabled() && enabled || isEnabled() && !enabled)
+                {
+                    //set the audio enabled/disabled in the menu as well
+                    super.setEnabled(enabled);
+                }
+                
                 //get the setting for the fullscreen window
-                tmpFullWindow = Toggle.values()[getOptionSelectionIndex(LayerKey.OptionsInGame, OptionKey.FullScreen)];
+                tmpFullscreen = Toggle.values()[getOptionSelectionIndex(LayerKey.OptionsInGame, OptionKey.FullScreen)];
             }
-            
+                
             //if on the options screen check fullscreen setting
             if (super.hasCurrent(LayerKey.Options))
-                tmpFullWindow = Toggle.values()[getOptionSelectionIndex(LayerKey.Options, OptionKey.FullScreen)];
+                tmpFullscreen = Toggle.values()[getOptionSelectionIndex(LayerKey.Options, OptionKey.FullScreen)];
             
             //if the values are not equal to each other a change was made
-            if (tmpFullWindow != fullWindow)
+            if (tmpFullscreen != fullscreen)
             {
                 if (fullScreen == null)
                     fullScreen = new FullScreen();
@@ -197,7 +204,7 @@ public final class CustomMenu extends Menu implements IElement
                 engine.getMain().setFullScreen();
 
                 //store the new setting
-                this.fullWindow = tmpFullWindow;
+                this.fullscreen = tmpFullscreen;
             }
             
             //does the container have focus
