@@ -53,7 +53,10 @@ public final class CustomMenu extends Menu implements IElement
     }
     
     //is full screen enabled, default false
-    private Toggle fullscreen = Toggle.Off;
+    //private Toggle fullscreen = Toggle.Off;
+    
+    //store the indec of the full screen setting
+    private int fullscreenIndex = 0;
     
     //does the container have focus
     private Toggle focus = Toggle.On;
@@ -142,7 +145,7 @@ public final class CustomMenu extends Menu implements IElement
         if (!super.hasFinished())
         {
             //the option selection for the sound and fullscreen
-            Toggle tmpFullscreen = fullscreen;
+            int tmpFullscreenIndex = fullscreenIndex;
             
             //are we currently in the in-game options
             final boolean isInGameOptionsLayer = super.hasCurrent(LayerKey.OptionsInGame);
@@ -177,15 +180,15 @@ public final class CustomMenu extends Menu implements IElement
                 }
                 
                 //get the setting for the fullscreen window
-                tmpFullscreen = Toggle.values()[getOptionSelectionIndex(LayerKey.OptionsInGame, OptionKey.FullScreen)];
+                tmpFullscreenIndex = getOptionSelectionIndex(LayerKey.OptionsInGame, OptionKey.FullScreen);
             }
                 
             //if on the options screen check fullscreen setting
             if (super.hasCurrent(LayerKey.Options))
-                tmpFullscreen = Toggle.values()[getOptionSelectionIndex(LayerKey.Options, OptionKey.FullScreen)];
+                tmpFullscreenIndex = getOptionSelectionIndex(LayerKey.Options, OptionKey.FullScreen);
             
             //if the values are not equal to each other a change was made
-            if (tmpFullscreen != fullscreen)
+            if (tmpFullscreenIndex != fullscreenIndex)
             {
                 if (fullScreen == null)
                     fullScreen = new FullScreen();
@@ -204,7 +207,7 @@ public final class CustomMenu extends Menu implements IElement
                 engine.getMain().setFullScreen();
 
                 //store the new setting
-                this.fullscreen = tmpFullscreen;
+                this.fullscreenIndex = tmpFullscreenIndex;
             }
             
             //does the container have focus
