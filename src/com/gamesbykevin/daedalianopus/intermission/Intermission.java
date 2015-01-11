@@ -148,7 +148,7 @@ public class Intermission implements Disposable, IElement
      * @param current 
      * @param pieces
      */
-    private void reset(final Random random, final int current, final Pieces pieces)
+    private void reset(final Random random, final int current, final Pieces pieces) throws Exception
     {
         //no longer need to reset
         this.reset = false;
