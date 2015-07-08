@@ -1,8 +1,9 @@
 package com.gamesbykevin.daedalianopus.puzzle;
 
 import com.gamesbykevin.framework.base.Cell;
-import com.gamesbykevin.framework.labyrinth.Location;
-import com.gamesbykevin.framework.labyrinth.Location.Wall;
+
+import com.gamesbykevin.framework.maze.Room;
+import com.gamesbykevin.framework.maze.Room.Wall;
 
 import com.gamesbykevin.daedalianopus.puzzle.piece.Piece;
 import com.gamesbykevin.daedalianopus.puzzle.piece.Pieces;
@@ -11,6 +12,7 @@ import com.gamesbykevin.daedalianopus.puzzle.piece.PiecesHelper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 public class PuzzleHelper 
 {
@@ -100,7 +102,7 @@ public class PuzzleHelper
      * @param group The group we are looking for
      * @return the total number of locations with the matching group
      */
-    private static int getCount(final Location[][] locations, final long group)
+    private static int getCount(final Room[][] locations, final UUID group)
     {
         int count = 0;
         
@@ -108,7 +110,7 @@ public class PuzzleHelper
         {
             for (int row = 0; row < locations.length; row++)
             {
-                if (locations[row][col].getGroup() == group)
+                if (locations[row][col].hasId(group))
                     count++;
             }
         }
@@ -121,14 +123,14 @@ public class PuzzleHelper
      * @param locations Array of locations to check
      * @param group The group we are looking for
      */
-    private static void markVisited(final Location[][] locations, final long group)
+    private static void markVisited(final Room[][] locations, final UUID group)
     {
         for (int col = 0; col < locations[0].length; col++)
         {
             for (int row = 0; row < locations.length; row++)
             {
-                if (locations[row][col].getGroup() == group)
-                    locations[row][col].markVisited();
+                if (locations[row][col].hasId(group))
+                    locations[row][col].setVisited(true);
             }
         }
     }
@@ -138,7 +140,7 @@ public class PuzzleHelper
      * @param locations Array of locations to check
      * @return true if so, false otherwise
      */
-    private static boolean allVisited(final Location[][] locations)
+    private static boolean allVisited(final Room[][] locations)
     {
         for (int col = 0; col < locations[0].length; col++)
         {
@@ -193,13 +195,13 @@ public class PuzzleHelper
         Puzzle puzzle = new Puzzle(columns, rows);
         
         //array of locations
-        Location[][] locations = new Location[puzzle.getRows()][puzzle.getCols()];
+        Room[][] locations = new Room[puzzle.getRows()][puzzle.getCols()];
         
         //list for walls
         List<Wall> walls = new ArrayList<>();
         
         //list of groups
-        List<Long> groups = new ArrayList<>();
+        List<UUID> groups = new ArrayList<>();
         
         //create all locations
         for (int col = 0; col < locations[0].length; col++)
@@ -207,7 +209,7 @@ public class PuzzleHelper
             for (int row = 0; row < locations.length; row++)
             {
                 //create new location
-                locations[row][col] = new Location(col, row);
+                locations[row][col] = new Room(col, row);
             }
         }
         
@@ -219,7 +221,7 @@ public class PuzzleHelper
                 for (int row = 0; row < locations.length; row++)
                 {
                     //get the group of the current location
-                    final long group = locations[row][col].getGroup();
+                    final UUID group = locations[row][col].getId();
                     
                     //clear wall selection list
                     walls.clear();
@@ -231,11 +233,11 @@ public class PuzzleHelper
                     
                     if (row < locations.length - 1)
                     {
-                        Location south = locations[row + 1][col];
+                        Room south = locations[row + 1][col];
                         
-                        if (!south.hasVisited() && south.getGroup() != group)
+                        if (!south.hasVisited() && !south.hasId(group))
                         {
-                            directionCount = getCount(locations, south.getGroup());
+                            directionCount = getCount(locations, south.getId());
                             
                             if (groupCount + directionCount <= MAX_SMALL_PIECE_SIZE && directionCount <= MERGE_COUNT_MAX)
                             {
@@ -246,11 +248,11 @@ public class PuzzleHelper
                     
                     if (row > 0)
                     {
-                        Location north = locations[row - 1][col]; 
+                        Room north = locations[row - 1][col]; 
                         
-                        if (!north.hasVisited() && north.getGroup() != group)
+                        if (!north.hasVisited() && !north.hasId(group))
                         {
-                            directionCount = getCount(locations, north.getGroup());
+                            directionCount = getCount(locations, north.getId());
                             
                             if (groupCount + directionCount <= MAX_SMALL_PIECE_SIZE && directionCount <= MERGE_COUNT_MAX)
                             {
@@ -261,11 +263,11 @@ public class PuzzleHelper
                     
                     if (col < locations[0].length - 1)
                     {
-                        Location east = locations[row][col + 1];
+                        Room east = locations[row][col + 1];
                         
-                        if (!east.hasVisited() && east.getGroup() != group)
+                        if (!east.hasVisited() && !east.hasId(group))
                         {
-                            directionCount = getCount(locations, east.getGroup());
+                            directionCount = getCount(locations, east.getId());
                             
                             if (groupCount + directionCount <= MAX_SMALL_PIECE_SIZE && directionCount <= MERGE_COUNT_MAX)
                             {
@@ -276,11 +278,11 @@ public class PuzzleHelper
                     
                     if (col > 0)
                     {
-                        Location west = locations[row][col - 1];
+                        Room west = locations[row][col - 1];
                         
-                        if (!west.hasVisited() && west.getGroup() != group)
+                        if (!west.hasVisited() && !west.hasId(group))
                         {
-                            directionCount = getCount(locations, west.getGroup());
+                            directionCount = getCount(locations, west.getId());
                             
                             if (groupCount + directionCount <= MAX_SMALL_PIECE_SIZE && directionCount <= MERGE_COUNT_MAX)
                             {
@@ -299,19 +301,19 @@ public class PuzzleHelper
                         {
                             case North:
                                 //mark as part of group
-                                locations[row - 1][col].setGroup(group);
+                                locations[row - 1][col].setId(group);
                                 break;
 
                             case South:
-                                locations[row + 1][col].setGroup(group);
+                                locations[row + 1][col].setId(group);
                                 break;
 
                             case East:
-                                locations[row][col + 1].setGroup(group);
+                                locations[row][col + 1].setId(group);
                                 break;
 
                             case West:
-                                locations[row][col - 1].setGroup(group);
+                                locations[row][col - 1].setId(group);
                                 break;
                         }
 
@@ -339,7 +341,7 @@ public class PuzzleHelper
         {
             for (int row = 0; row < locations.length; row++)
             {
-                final long group = locations[row][col].getGroup();
+                final UUID group = locations[row][col].getId();
                 
                 boolean valid = true;
                 
@@ -376,7 +378,7 @@ public class PuzzleHelper
             {
                 for (int col = 0; col < locations[0].length; col++)
                 {
-                    if (locations[row][col].getGroup() == groups.get(i))
+                    if (locations[row][col].hasId(groups.get(i)))
                     {
                         cells.add(new Cell(col, row));
 

@@ -261,7 +261,7 @@ public final class Manager implements IManager
      * @param graphics Graphics object used for drawing
      */
     @Override
-    public void render(final Graphics graphics)
+    public void render(final Graphics graphics) throws Exception
     {
         if (hasGameover())
         {

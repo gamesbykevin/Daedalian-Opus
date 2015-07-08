@@ -121,8 +121,8 @@ public class Intermission implements Disposable, IElement
         this.buildingWest.getSpriteSheet().add(animation4, BuildingType.Building4);
         this.buildingWest.getSpriteSheet().add(animation5, BuildingType.Building5);
         
-        Animation east = new Animation();
-        east.add(PLAYER_WIDTH * 0, PLAYER_HEIGHT * 0, PLAYER_WIDTH, PLAYER_HEIGHT, delay);
+        Animation east = new Animation(PLAYER_WIDTH * 0, PLAYER_HEIGHT * 0, PLAYER_WIDTH, PLAYER_HEIGHT, delay);
+        //east.add(PLAYER_WIDTH * 0, PLAYER_HEIGHT * 0, PLAYER_WIDTH, PLAYER_HEIGHT, delay);
         east.add(PLAYER_WIDTH * 1, PLAYER_HEIGHT * 0, PLAYER_WIDTH, PLAYER_HEIGHT, delay);
         east.add(PLAYER_WIDTH * 2, PLAYER_HEIGHT * 0, PLAYER_WIDTH, PLAYER_HEIGHT, delay);
         east.add(PLAYER_WIDTH * 3, PLAYER_HEIGHT * 0, PLAYER_WIDTH, PLAYER_HEIGHT, delay);
@@ -301,7 +301,7 @@ public class Intermission implements Disposable, IElement
     }
     
     @Override
-    public void render(final Graphics graphics)
+    public void render(final Graphics graphics) throws Exception
     {
         //if not active or need to reset don't continue
         if (!isActive() || reset)
